@@ -12,8 +12,7 @@ const server = net.createServer((socket) => {
         // socket.write("HTTP/1.1 200 OK\r\n\r\n")
         console.log(data)
         const path = data.toString().split(" ")[1]
-        let responseStatus 
-        if(path = "/") {socket.write("HTTP/1.1 200 OK\r\n\r\n")}
+        if(path === "/") {socket.write("HTTP/1.1 200 OK\r\n\r\n")}
         else if(path.includes("/echo/")) {
             const content = path.split("/echo/")[1]
             socket.write(`HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${content.length}\r\n\r\n${content}`)
