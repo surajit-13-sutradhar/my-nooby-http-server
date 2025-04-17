@@ -13,13 +13,13 @@ const server = net.createServer((socket) => {
         console.log(data)
         const path = data.toString().split(" ")[1]
         let responseStatus 
-        if(path = "/") responseStatus = "200 OK"
+        if(path = "/") {socket.write("HTTP/1.1 200 OK\r\n\r\n")}
         else if(path.includes("/echo/")) {
             const content = path.split("/echo/")[1]
             socket.write(`HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${content.length}\r\n\r\n${content}`)
         }
-        else responseStatus = "404 Not Found"
-        socket.write(`HTTP/1.1 ${responseStatus}\r\n\r\n`)
+        else {socket.write("HTTP/1.1 404 Not Found\r\n\r\n")}
+        
     })
 
     socket.on("error", (err) => {
