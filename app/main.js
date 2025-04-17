@@ -57,7 +57,7 @@ const server = net.createServer((socket) => {
         }
         // If path starts with "/files/" and method is POST
         else if(path.startsWith("/files/") && method === "POST"){
-            const filename = process.argv[3] + "/" + path.substring(7);
+            const filename = process.argv[3] 
             const req = data.toString().split("\r\n");
             const body = req[req.length - 1];
             fs.writeFileSync(filename, body);
