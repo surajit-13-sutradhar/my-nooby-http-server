@@ -17,7 +17,7 @@ const server = net.createServer((socket) => {
             const content = path.split("/echo/")[1]
             socket.write(`HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${content.length}\r\n\r\n${content}`)
         }
-        else if(path.includes("/user-agent")) {
+        else if(path === "/user-agent") {
             const userAgent = headers[2].split('User-Agent: ')[1]
             socket.write(`HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${userAgent.length}\r\n\r\n${userAgent}`);
 
