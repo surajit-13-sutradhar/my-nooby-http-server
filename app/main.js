@@ -13,9 +13,8 @@ const server = net.createServer((socket) => {
         console.log(data)
         const path = data.toString().split(" ")[1]
         const responseStatus = path === "/" ? "200 ok": "404 Not Found"
-        socket.write(`HTTP/1.1 ${responseStatus} \r\n\r\n`)
+        socket.write(`HTTP/1.1 ${responseStatus}\r\n\r\n`)
     })
 })
-
 
 server.listen(4221, "localhost");
