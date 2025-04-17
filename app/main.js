@@ -12,6 +12,8 @@ const server = net.createServer((socket) => {
         // socket.write("HTTP/1.1 200 OK\r\n\r\n")
         console.log(data)
         const path = data.toString().split(" ")[1]
+        const headers = data.toString().split("\r\n")
+        
         if(path === "/") {socket.write("HTTP/1.1 200 OK\r\n\r\n")}
         else if(path.includes("/echo/")) {
             const content = path.split("/echo/")[1]
