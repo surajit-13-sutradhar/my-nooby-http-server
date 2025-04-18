@@ -18,6 +18,17 @@ const parseRequest = (requestData) => {
     return { method, path, protocol, headers };
 };
 
+// Function to check if gzip is supported in Accept-Encoding header
+const supportsGzip = (acceptEncoding) => {
+    if (!acceptEncoding) return false;
+    
+    // Split by comma and trim each value
+    const encodings = acceptEncoding.split(',').map(encoding => encoding.trim().toLowerCase());
+    
+    // Check if gzip is in the list of supported encodings
+    return encodings.includes('gzip');
+};
+
 const OK_RESPONSE = "HTTP/1.1 200 OK\r\n";
 const ERROR_RESPONSE = "HTTP/1.1 404 Not Found\r\n";
 
@@ -57,9 +68,9 @@ const server = net.createServer((socket) => {
                 responseHeader += "Connection: close\r\n";
             }
 
-            // Handle Accept-Encoding: gzip
+            // Handle Accept-Encoding with multiple compression schemes
             const acceptEncoding = headers["Accept-Encoding"] || "";
-            const useGzip = acceptEncoding.includes("gzip");
+            const useGzip = supportsGzip(acceptEncoding);
 
             // Handle the various paths as per the request
             if (path === "/") {
