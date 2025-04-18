@@ -63,7 +63,7 @@ const server = net.createServer((socket) => {
                 "Content-Length": path.length - 6 // for /echo/{str}
             };
 
-            // If Accept-Encoding includes gzip, include the header but don't compress
+            // Always add Content-Encoding if Accept-Encoding includes gzip
             if (acceptEncoding.includes("gzip")) {
                 responseHeaders["Content-Encoding"] = "gzip";
             }
