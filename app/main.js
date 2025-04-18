@@ -3,99 +3,118 @@ const net = require("net");
 
 console.log("Logs from your program will appear here!");
 
-// Function to parse the request
-const parseRequest = (requestData) => {
-    const request = requestData.toString().split("\r\n");
-    const [method, path, protocol] = request[0].split(" ");
+const OK_RESPONSE = "HTTP/1.1 200 OK";
+const NOT_FOUND_RESPONSE = "HTTP/1.1 404 Not Found";
+
+// Helper to format a proper HTTP response
+function createResponse(statusLine, headers = {}, body = "") {
+    let response = `${statusLine}\r\n`;
+    for (const [key, value] of Object.entries(headers)) {
+        response += `${key}: ${value}\r\n`;
+    }
+    response += `\r\n${body}`;
+    return response;
+}
+
+// Parses the incoming raw request
+function parseRequest(requestData) {
+    const [headerPart, body] = requestData.toString().split("\r\n\r\n");
+    const lines = headerPart.split("\r\n");
+    const [method, path, protocol] = lines[0].split(" ");
     const headers = {};
-    request.slice(1).forEach((header) => {
-        const [key, value] = header.split(": ");
-        if (key && value) {
-            headers[key] = value;
-        }
-    });
-    return { method, path, protocol, headers };
-};
 
-const OK_RESPONSE = "HTTP/1.1 200 OK\r\n";
-const ERROR_RESPONSE = "HTTP/1.1 404 Not Found\r\n";
+    for (let i = 1; i < lines.length; i++) {
+        const [key, value] = lines[i].split(": ");
+        if (key && value) headers[key] = value;
+    }
 
-// Create server to handle multiple concurrent requests
+    return { method, path, protocol, headers, body };
+}
+
+// TCP Server
 const server = net.createServer((socket) => {
-    let buffer = Buffer.alloc(0); // For the current connection
+    let buffer = Buffer.alloc(0);
 
     socket.on("data", (data) => {
         buffer = Buffer.concat([buffer, data]);
 
         while (true) {
-            // Try to parse one full request
-            const rawRequest = buffer.toString().split("\r\n\r\n")[0];
-            const headersEndIndex = buffer.indexOf("\r\n\r\n");
+            const headersEnd = buffer.indexOf("\r\n\r\n");
+            if (headersEnd === -1) break;
 
-            if (headersEndIndex === -1) break; // Header incomplete
+            const rawHeader = buffer.toString("utf-8", 0, headersEnd);
+            const contentLengthMatch = rawHeader.match(/Content-Length: (\d+)/i);
+            const contentLength = contentLengthMatch ? parseInt(contentLengthMatch[1]) : 0;
+            const totalLength = headersEnd + 4 + contentLength;
 
-            const contentLengthMatch = rawRequest.match(/Content-Length: (\d+)/i);
-            const expectedBodyLength = contentLengthMatch ? parseInt(contentLengthMatch[1]) : 0;
+            if (buffer.length < totalLength) break;
 
-            const totalRequestLength = headersEndIndex + 4 + expectedBodyLength;
-            if (buffer.length < totalRequestLength) break;
+            const fullRequest = buffer.slice(0, totalLength).toString();
+            buffer = buffer.slice(totalLength);
 
-            // Extract and remove the full request from the buffer
-            const fullRequest = buffer.slice(0, totalRequestLength);
-            buffer = buffer.slice(totalRequestLength);
+            const { method, path, headers, body } = parseRequest(fullRequest);
 
-            const request = parseRequest(fullRequest);
-            const { method, path, headers } = request;
+            let shouldClose = headers["Connection"]?.toLowerCase() === "close";
+            let response = "";
 
-            let responseHeader = OK_RESPONSE;
-            let closeConnection = false;
-
-            if (headers["Connection"] && headers["Connection"].toLowerCase() === "close") {
-                closeConnection = true;
-                responseHeader = responseHeader.replace("OK", "OK\r\nConnection: close");
-            }
-
-            // Handle the various paths as per the request
             if (path === "/") {
-                socket.write(`${responseHeader}\r\n`);
-            } else if (path.startsWith("/echo")) {
-                const content = path.substring(6);
-                socket.write(
-                    `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${content.length}\r\n\r\n${content}`
-                );
-            } else if (path.startsWith("/user-agent")) {
-                const agent = headers["User-Agent"];
-                socket.write(
-                    `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${agent.length}\r\n\r\n${agent}`
-                );
-            } else if (path.startsWith("/files/") && method === "GET") {
-                const fileName = path.replace("/files/", "").trim();
-                const filePath = process.argv[3] + fileName;
-                const isExist = fs.readdirSync(process.argv[3]).some((file) => {
-                    return file === fileName;
-                });
-                if (isExist) {
-                    const content = fs.readFileSync(filePath, "utf-8");
-                    socket.write(
-                        `${responseHeader}Content-Type: application/octet-stream\r\nContent-Length: ${content.length}\r\n\r\n${content}`
-                    );
-                } else {
-                    socket.write(ERROR_RESPONSE + "\r\n\r\n");
-                }
-            } else if (path.startsWith("/files/") && method === "POST") {
-                const filename = process.argv[3] + "/" + path.substring(7);
-                const req = data.toString().split("\r\n");
-                const body = req[req.length - 1];
-                fs.writeFileSync(filename, body);
-                socket.write(`${responseHeader}Created\r\n\r\n`);
-            } else {
-                socket.write(ERROR_RESPONSE + "\r\n\r\n");
+                response = createResponse(OK_RESPONSE, { "Content-Length": 0 });
             }
 
-            // If Connection: close was requested, close the socket after sending the response
-            if (closeConnection) {
-                socket.end(); // Close the connection
+            else if (path.startsWith("/echo")) {
+                const message = path.slice(6);
+                response = createResponse(OK_RESPONSE, {
+                    "Content-Type": "text/plain",
+                    "Content-Length": message.length
+                }, message);
             }
+
+            else if (path === "/user-agent") {
+                const agent = headers["User-Agent"] || "";
+                response = createResponse(OK_RESPONSE, {
+                    "Content-Type": "text/plain",
+                    "Content-Length": agent.length
+                }, agent);
+            }
+
+            else if (path.startsWith("/files/") && method === "GET") {
+                const fileName = path.slice("/files/".length);
+                const filePath = `${process.argv[3]}${fileName}`;
+                if (fs.existsSync(filePath)) {
+                    const content = fs.readFileSync(filePath);
+                    response = createResponse(OK_RESPONSE, {
+                        "Content-Type": "application/octet-stream",
+                        "Content-Length": content.length
+                    }, content);
+                } else {
+                    response = createResponse(NOT_FOUND_RESPONSE, {
+                        "Content-Length": 0
+                    });
+                }
+            }
+
+            else if (path.startsWith("/files/") && method === "POST") {
+                const fileName = path.slice("/files/".length);
+                const filePath = `${process.argv[3]}${fileName}`;
+                fs.writeFileSync(filePath, body);
+                response = createResponse("HTTP/1.1 201 Created", {
+                    "Content-Length": 0
+                });
+            }
+
+            else {
+                response = createResponse(NOT_FOUND_RESPONSE, {
+                    "Content-Length": 0
+                });
+            }
+
+            if (shouldClose) {
+                response = response.replace("\r\n\r\n", "\r\nConnection: close\r\n\r\n");
+            }
+
+            socket.write(response, () => {
+                if (shouldClose) socket.end();
+            });
         }
     });
 
