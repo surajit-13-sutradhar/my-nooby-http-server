@@ -29,6 +29,11 @@ const supportsGzip = (acceptEncoding) => {
     return encodings.includes('gzip');
 };
 
+// Function to compress data with gzip
+const compressWithGzip = (data) => {
+    return zlib.gzipSync(data);
+};
+
 const OK_RESPONSE = "HTTP/1.1 200 OK\r\n";
 const ERROR_RESPONSE = "HTTP/1.1 404 Not Found\r\n";
 
@@ -77,36 +82,40 @@ const server = net.createServer((socket) => {
                 socket.write(`${responseHeader}\r\n`);
             } else if (path.startsWith("/echo")) {
                 const content = path.substring(6);
-                let responseBody = content;
-                let contentLength = Buffer.byteLength(responseBody);
+                let responseBody = Buffer.from(content);
                 
                 if (useGzip) {
-                    responseBody = zlib.gzipSync(responseBody);
-                    contentLength = responseBody.length;
+                    // Compress the response body
+                    responseBody = compressWithGzip(responseBody);
+                    
+                    // Write response with gzip header
                     socket.write(
-                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${contentLength}\r\nContent-Encoding: gzip\r\n\r\n`
+                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${responseBody.length}\r\nContent-Encoding: gzip\r\n\r\n`
                     );
                 } else {
+                    // Write response without gzip header
                     socket.write(
-                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${contentLength}\r\n\r\n`
+                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${responseBody.length}\r\n\r\n`
                     );
                 }
                 
                 socket.write(responseBody);
             } else if (path.startsWith("/user-agent")) {
                 const agent = headers["User-Agent"];
-                let responseBody = agent;
-                let contentLength = Buffer.byteLength(responseBody);
+                let responseBody = Buffer.from(agent);
                 
                 if (useGzip) {
-                    responseBody = zlib.gzipSync(responseBody);
-                    contentLength = responseBody.length;
+                    // Compress the response body
+                    responseBody = compressWithGzip(responseBody);
+                    
+                    // Write response with gzip header
                     socket.write(
-                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${contentLength}\r\nContent-Encoding: gzip\r\n\r\n`
+                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${responseBody.length}\r\nContent-Encoding: gzip\r\n\r\n`
                     );
                 } else {
+                    // Write response without gzip header
                     socket.write(
-                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${contentLength}\r\n\r\n`
+                        `${responseHeader}Content-Type: text/plain\r\nContent-Length: ${responseBody.length}\r\n\r\n`
                     );
                 }
                 
@@ -117,19 +126,20 @@ const server = net.createServer((socket) => {
                 
                 try {
                     if (fs.existsSync(filePath)) {
-                        const content = fs.readFileSync(filePath);
-                        let responseBody = content;
-                        let contentLength = responseBody.length;
+                        let responseBody = fs.readFileSync(filePath);
                         
                         if (useGzip) {
-                            responseBody = zlib.gzipSync(responseBody);
-                            contentLength = responseBody.length;
+                            // Compress the response body
+                            responseBody = compressWithGzip(responseBody);
+                            
+                            // Write response with gzip header
                             socket.write(
-                                `${responseHeader}Content-Type: application/octet-stream\r\nContent-Length: ${contentLength}\r\nContent-Encoding: gzip\r\n\r\n`
+                                `${responseHeader}Content-Type: application/octet-stream\r\nContent-Length: ${responseBody.length}\r\nContent-Encoding: gzip\r\n\r\n`
                             );
                         } else {
+                            // Write response without gzip header
                             socket.write(
-                                `${responseHeader}Content-Type: application/octet-stream\r\nContent-Length: ${contentLength}\r\n\r\n`
+                                `${responseHeader}Content-Type: application/octet-stream\r\nContent-Length: ${responseBody.length}\r\n\r\n`
                             );
                         }
                         
