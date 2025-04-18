@@ -18,7 +18,7 @@ const parseRequest = (requestData) => {
     return { method, path, protocol, headers };
 };
 
-const OK_RESPONSE = "HTTP/1.1 201 OK\r\n";
+const OK_RESPONSE = "HTTP/1.1 200 OK\r\n";
 const ERROR_RESPONSE = "HTTP/1.1 404 Not Found\r\n";
 
 // Create server to handle multiple concurrent requests
@@ -54,7 +54,7 @@ const server = net.createServer((socket) => {
             // Check if the connection should be closed after response
             if (headers["Connection"] && headers["Connection"].toLowerCase() === "close") {
                 closeConnection = true;
-                responseHeader = responseHeader.replace("OK", "OK\r\nConnection: close");
+                responseHeader += "Connection: close\r\n";
             }
 
             // Handle Accept-Encoding: gzip
@@ -138,7 +138,7 @@ const server = net.createServer((socket) => {
                 const bodyContent = fullRequest.slice(bodyStart, bodyStart + expectedBodyLength);
                 
                 fs.writeFileSync(filePath, bodyContent);
-                socket.write(`${responseHeader}Content-Type: text/plain\r\nContent-Length: 0\r\n\r\n`);
+                socket.write(`HTTP/1.1 201 Created\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n`);
             } else {
                 socket.write(ERROR_RESPONSE + "\r\n\r\n");
             }
