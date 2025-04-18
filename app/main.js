@@ -57,7 +57,7 @@ const server = net.createServer((socket) => {
 
             // Handle the various paths as per the request
             if (path === "/") {
-                socket.write(responseHeader + "\r\n\r\n");
+                socket.write(`${responseHeader}\r\n`);
             } else if (path.startsWith("/echo")) {
                 const content = path.substring(6);
                 socket.write(
