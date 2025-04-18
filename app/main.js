@@ -18,7 +18,7 @@ const parseRequest = (requestData) => {
     return { method, path, protocol, headers };
 };
 
-const OK_RESPONSE = "HTTP/1.1 200 OK\r\n";
+const OK_RESPONSE = "HTTP/1.1 201 OK\r\n";
 const ERROR_RESPONSE = "HTTP/1.1 404 Not Found\r\n";
 
 // Create server to handle multiple concurrent requests
